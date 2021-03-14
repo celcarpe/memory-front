@@ -1,0 +1,31 @@
+{
+  "name": "morpion-front",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "webpack serve --open",
+    "build": "webpack"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AntoineAndo/morpion-front.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AntoineAndo/morpion-front/issues"
+  },
+  "homepage": "https://github.com/AntoineAndo/morpion-front#readme",
+  "devDependencies": {
+    "css-loader": "^5.1.2",
+    "sass": "^1.32.8",
+    "sass-loader": "^11.0.1",
+    "webpack": "^5.25.0",
+    "webpack-cli": "^4.5.0",
+    "webpack-dev-server": "^3.11.2"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "style-loader": "^2.0.0"
+  }
+}
