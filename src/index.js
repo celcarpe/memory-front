@@ -18,11 +18,6 @@ In progress
 class Game {
 
 	constructor(){
-		this.firstCard = undefined;
-		this.gameID = this._generateGameID(10);
-
-		this.cards = this._generateCards(5)
-		this.pairNumber = 5;
 
 		//récupération des éléments du DOM
 		this.boardElement = document.getElementById("board");
@@ -34,14 +29,29 @@ class Game {
 	initializeBoard(){
 
 		//Réinitialisation de la board
+		this.firstCard = undefined;
+		this.gameID = this._generateGameID(10);
+
+		this.cards = this._generateCards(5)
+		this.pairNumber = 5;
+
 		this.boardElement.innerHTML = "";
 		this.restartButton.classList.add("hidden");
 		this.playButton.classList.remove("hidden");
+
+		this.boardData = {
+			gameID 	: this.gameID,
+			cards 	: []
+		};
 
 		this.canPlay = false;
 
 		//Génération du HTML des cartes
 		var cardsString = this.cards.reduce((accumulator, card) => {
+
+			//Chaque carte est ajouté au tableau de données
+			this.boardData.cards.push(card)
+
 			return accumulator += '<div class="card" pair="'+card.pair+'">'+card.number+'</div>'
 		}, "")
 
@@ -83,24 +93,32 @@ class Game {
 			if(this.firstCard == undefined){
 				e.target.classList.add("selected");
 
-				this.firstCard = {
-					"element" 	: e.target,
-					"pair"  	: e.target.getAttribute("pair"),
-					"value" 	: e.target.innerHTML
-				}
+				//Mise à jour de la carte sélectionnée dans les données du jeu
+				this.firstCard = _.find(this.boardData.cards, function(card){
+					return card.number == e.target.innerHTML && card.pair == e.target.getAttribute("pair")
+				})
+				this.firstCard.selected = true;
 			}else{
 
 				//Si l'utilisateur clique sur la même carte
-				if(e.target.getAttribute('pair') == this.firstCard.pair && e.target.innerHTML == this.firstCard.value){
+				if(e.target.getAttribute('pair') == this.firstCard.pair && e.target.innerHTML == this.firstCard.number){
 					//Si même carte
 					return;
 
-				}else if(e.target.innerHTML == this.firstCard.value && e.target.getAttribute('pair') != this.firstCard.pair){
+				}else if(e.target.innerHTML == this.firstCard.number && e.target.getAttribute('pair') != this.firstCard.pair){
 					//Si bonne carte
 					this.canPlay = false;
 					this.pairFound += 1;
 
 					e.target.classList.add("selected");
+
+					//validation de la première carte de la paire dans les données du jeu
+					this.firstCard.found = true;
+
+					//validation de la seconde carte de la paire dans les données du jeu
+					_.find(this.boardData.cards, function(card){
+						return card.number == e.target.innerHTML && card.pair == e.target.getAttribute("pair")
+					}).found = true;
 
 					//Les cartes restent affichées quelques secondes avant d'être retournées et grisées
 					setTimeout(()=>{
@@ -118,7 +136,6 @@ class Game {
 
 				}else {
 					//Si mauvaise carte
-
 					e.target.classList.add("selected");
 					this.canPlay = false;
 
@@ -131,13 +148,18 @@ class Game {
 					}, 1000)
 
 				}
+				this.firstCard.selected = false;
 				this.firstCard = undefined;
+			}
+
+			console.log(this.boardData.cards)
+
+			if(this.pairFound == this.pairNumber){
+				this._victory();
+				this.canPlay = false;
 			}
 		}
 
-		if(this.pairFound == this.pairNumber){
-			this._victory();
-		}
 	}
 
 	_victory(){
@@ -178,6 +200,8 @@ class Card{
 	constructor(number, pair){
 		this.number = number;
 		this.pair = pair;
+		this.found = false;
+		this.selected = false;
 	}
 
 }
