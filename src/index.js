@@ -10,6 +10,7 @@ class Game {
 		this.cards = this._generateCards(5)
 
 		this.boardElement = document.getElementById("board");
+		this.canPlay = true;
 	}
 
 	initializeBoard(){
@@ -22,7 +23,7 @@ class Game {
 		//Insertion des cartes dans le plateau
 		this.boardElement.insertAdjacentHTML("beforeend", cardsString );
 
-		this.boardElement.addEventListener("click", this.checkClick );
+		this.boardElement.addEventListener("click", this._checkClick.bind(this) );
 
 	}
 
@@ -31,13 +32,14 @@ class Game {
 	}
 
 
-	checkClick(e){
+	_checkClick(e){
 		if(e.target.getAttribute("class") == "card"){
+
+			if(!this.canPlay)
+				return;
 
 			//Si aucune carte n'a été sélectionnée
 			if(this.firstCard == undefined){
-				console.log("Première carte")
-				console.log(e.target)
 				e.target.classList.add("selected");
 
 				this.firstCard = {
@@ -46,17 +48,14 @@ class Game {
 					"value" 	: e.target.innerHTML
 				}
 			}else{
-				console.log("Deuxième carte")
-				console.log(e.target)
 
 				//Si l'utilisateur clique sur la même carte
 				if(e.target.getAttribute('pair') == this.firstCard.pair && e.target.innerHTML == this.firstCard.value){
-					console.log("Même carte");
 					return;
 
 				}else if(e.target.innerHTML == this.firstCard.value && e.target.getAttribute('pair') != this.firstCard.pair){
 					e.target.classList.add("selected");
-					console.log("nice")
+					this.canPlay = false;
 
 					//Les cartes restent affichées quelques secondes avant d'être retournées et grisées
 					setTimeout(()=>{
@@ -68,22 +67,25 @@ class Game {
 						card2.classList.remove("selected");
 						card2.classList.add("found")
 
+						this.canPlay = true;
+
 					}, 1000)
 
-				}else if(e.target.innerHTML != this.firstCard.value && e.target.getAttribute('pair') != this.firstCard.pair){
+				}else {
 					e.target.classList.add("selected");
-					console.log("Mauvaise paire");
+					this.canPlay = false;
 
 					//Les cartes restent affichées quelques secondes avant d'être retournées
 					setTimeout(()=>{
 						document.getElementsByClassName('selected').item(0).classList.remove("selected")
 						document.getElementsByClassName('selected').item(0).classList.remove("selected")
+
+						this.canPlay = true;
 					}, 1000)
 
 				}
 				this.firstCard = undefined;
 			}
-			console.log(this.firstCard)
 		}
 	}
 

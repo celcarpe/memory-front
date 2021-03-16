@@ -4,11 +4,13 @@
 	height: 50px;
 	background-color: #CCCCCC;
 	margin: 5px;
+	color: #CCCCCC;
 }
 
 .card.selected {
 	outline: solid red 2px;
 	outline-offset: -2px;
+	color: black;
 }
 
 .found {
