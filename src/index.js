@@ -1,17 +1,22 @@
 import _ from 'lodash';
 import './index.css';
 
+var CONF = {};
+CONF.BACKEND_HOST = "http://localhost"
+CONF.BACKEND_PORT = 3000;
 
 /*
 
-TODO
+TODO:
 - Timer
 - Progress bar
 - BDD
+	- sauvegarder partie en cours
+	- charger une partie
+	- suppression d'une partie sauvegardée lorsque celle ci est terminée
 
-In progress
-- mécanique de partie (début, victoire, etc...)
-
+IN progress:
+- accès DB
 
 */
 
@@ -22,7 +27,8 @@ class Game {
 		//récupération des éléments du DOM
 		this.boardElement = document.getElementById("board");
 		this.playButton = document.getElementById("playButton");
-		this.restartButton = document.getElementById("restart")
+		this.restartButton = document.getElementById("restart");
+		this.saveButton = document.getElementById("save");
 
 	}
 
@@ -39,18 +45,13 @@ class Game {
 		this.restartButton.classList.add("hidden");
 		this.playButton.classList.remove("hidden");
 
-		this.boardData = {
-			gameID 	: this.gameID,
-			cards 	: []
-		};
-
 		this.canPlay = false;
 
 		//Génération du HTML des cartes
 		var cardsString = this.cards.reduce((accumulator, card) => {
 
 			//Chaque carte est ajouté au tableau de données
-			this.boardData.cards.push(card)
+			this.cards.push(card)
 
 			return accumulator += '<div class="card" pair="'+card.pair+'">'+card.number+'</div>'
 		}, "")
@@ -58,19 +59,23 @@ class Game {
 		//Insertion des cartes dans le plateau
 		this.boardElement.insertAdjacentHTML("beforeend", cardsString );
 
-
+		//Ajout des fonctions de gestion des événements
 		this.boardElement.addEventListener("click", this._checkClick.bind(this) );
 		this.playButton.addEventListener("click", this.startGame.bind(this));
 		this.restartButton.addEventListener("click", this.restartGame.bind(this));
+		this.saveButton.addEventListener("click", this.saveGame.bind(this));
 
 	}
 
 	startGame(e){
-		this.playButton.classList.add("hidden")
 		//start timer
 		this.canPlay = true;
+		this.gameStarted = true;
 
 		this.pairFound = 0;
+
+		this.playButton.classList.add("hidden");
+		this.saveButton.removeAttribute("disabled");
 	}
 
 	restartGame(e){
@@ -94,7 +99,7 @@ class Game {
 				e.target.classList.add("selected");
 
 				//Mise à jour de la carte sélectionnée dans les données du jeu
-				this.firstCard = _.find(this.boardData.cards, function(card){
+				this.firstCard = _.find(this.cards, function(card){
 					return card.number == e.target.innerHTML && card.pair == e.target.getAttribute("pair")
 				})
 				this.firstCard.selected = true;
@@ -116,7 +121,7 @@ class Game {
 					this.firstCard.found = true;
 
 					//validation de la seconde carte de la paire dans les données du jeu
-					_.find(this.boardData.cards, function(card){
+					_.find(this.cards, function(card){
 						return card.number == e.target.innerHTML && card.pair == e.target.getAttribute("pair")
 					}).found = true;
 
@@ -152,8 +157,6 @@ class Game {
 				this.firstCard = undefined;
 			}
 
-			console.log(this.boardData.cards)
-
 			if(this.pairFound == this.pairNumber){
 				this._victory();
 				this.canPlay = false;
@@ -165,6 +168,7 @@ class Game {
 	_victory(){
 		alert("Victoire");
 		this.restartButton.classList.remove("hidden");
+		this.gameStarted = false;
 	}
 
 	_generateGameID(length) {
@@ -192,6 +196,22 @@ class Game {
 		cards.sort(() => Math.random() - 0.5);
 
 		return cards;
+	}
+
+	saveGame(e){
+		let conf = {
+			headers: { "Content-Type": "application/json; charset=utf-8" },
+			method : 'POST',
+			body: JSON.stringify(this)
+		}
+		console.log("conf");
+		console.log(conf);
+		fetch(CONF.BACKEND_HOST+":"+CONF.BACKEND_PORT+"/games", conf)
+		.then(response => response.json())
+		.then(data => {
+			console.log(data)
+		})
+
 	}
 }
 
