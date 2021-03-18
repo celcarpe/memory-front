@@ -1,5 +1,6 @@
 import _ from 'lodash';
-import './index.css';
+
+import './test.scss';
 
 //Importing images
 
@@ -7,8 +8,9 @@ function importAll(r) {
   return r.keys().map(r);
 }
 
-const IMAGE_POOL = importAll(require.context('./images', false, /\.(png|jpe?g|svg)$/));
+const IMAGE_POOL = importAll(require.context('./images/cards', false, /\.(png|jpe?g|svg)$/));
 const PAIR_NUMBER = IMAGE_POOL.length;
+const TIME_LIMIT = 60;
 
 var CONF = {};
 CONF.BACKEND_HOST = "http://localhost"
@@ -24,8 +26,6 @@ TODO:
 	- charger une partie
 	- suppression d'une partie sauvegardée lorsque celle ci est terminée
 
-IN progress:
-- accès DB
 
 */
 
@@ -41,30 +41,6 @@ class Game {
 		this.loadButton = document.getElementById("load");
 		this.gameInput = document.getElementById("gameInput");
 
-	}
-
-	initializeBoard(){
-
-		//Réinitialisation de la board
-		this.firstCard = undefined;
-		this.gameID = this._generateGameID(24);
-
-		this.cards = this._generateCards(PAIR_NUMBER)
-
-		this.boardElement.innerHTML = "";
-		this.restartButton.classList.add("hidden");
-		this.playButton.classList.remove("hidden");
-
-		this.canPlay = false;
-
-		//Génération du HTML des cartes
-		var cardsString = this.cards.reduce((accumulator, card) => {
-
-			return accumulator += '<div class="card" pair="'+card.pair+'" number="'+card.number+'">'+'<img alt="" src="'+card.source+'" />'+'</div>';
-		}, "")
-
-		//Insertion des cartes dans le plateau
-		this.boardElement.insertAdjacentHTML("beforeend", cardsString );
 
 		//Ajout des fonctions de gestion des événements
 		this.boardElement.addEventListener("click", this._checkClick.bind(this) );
@@ -73,17 +49,100 @@ class Game {
 		this.saveButton.addEventListener("click", this.saveGame.bind(this));
 		this.loadButton.addEventListener("click", this.loadGame.bind(this));
 
+		//Initialisation du Timer
+		this.timer = new Timer(TIME_LIMIT, this.stopGame);
+
+	}
+
+	initializeBoard(loadedData){
+
+		if(!loadedData){
+
+			this.loadedGame = false;
+
+			//Réinitialisation de la board
+			this.firstCard = undefined;
+			this.gameID = this._generateGameID(24);
+
+			this.cards = this._generateCards(PAIR_NUMBER)
+
+			this.boardElement.innerHTML = ""; //
+			this.restartButton.setAttribute("disabled","disabled"); //
+			this.playButton.removeAttribute("disabled"); //
+
+			this.canPlay = false; //
+
+			//Génération du HTML des cartes
+			var cardsString = this.cards.reduce((accumulator, card) => {
+
+				return accumulator += '<div class="card" pair="'+card.pair+'" number="'+card.number+'">'+'<img alt="" src="'+card.source+'" />'+'</div>';
+			}, "")
+
+			//Insertion des cartes dans le plateau
+			this.boardElement.insertAdjacentHTML("beforeend", cardsString );
+
+		}else{
+			this.gameID 	= loadedData._id;
+			this.pairFound 	= loadedData.pairFound;
+			this.loadedGame = true;
+			this.cards 		= loadedData.cards;
+
+			this.boardElement.innerHTML = ""; //
+			this.restartButton.setAttribute("disabled","disabled"); //
+			this.playButton.removeAttribute("disabled"); //
+
+			this.canPlay 	= false; //
+
+			//Génération du HTML des cartes
+			let cardsString = loadedData.cards.reduce((accumulator, card) => {
+
+				let classList = "";
+
+				if(card.selected){
+					this.firstCard = card;
+					classList = "selected";
+				}
+
+				if(card.found)
+					classList = "hidden";
+
+				return accumulator += '<div class="card '+classList+'" pair="'+card.pair+'" number="'+card.number+'">'+'<img alt="" src="'+card.source+'" />'+'</div>';
+			}, "")
+
+			//Insertion des cartes dans le plateau
+			this.boardElement.insertAdjacentHTML("beforeend", cardsString );
+		}
+
 	}
 
 	startGame(e){
-		//start timer
+		this.timer.start();
+
+
 		this.canPlay = true;
 		this.gameStarted = true;
 
-		this.pairFound = 0;
-
-		this.playButton.classList.add("hidden");
+		if(!this.loadedGame){
+			this.gameInput.setAttribute("value",this.gameID);
+			this.pairFound = 0;
+		}else{
+			console.log("RESUME")
+		}
+		this.playButton.setAttribute("disabled","disabled");
 		this.saveButton.removeAttribute("disabled");
+	}
+
+	stopGame(){
+		this.canPlay = false;
+		this.gameStarted = false;
+
+		//révéler toutes les cartes
+		let cards = document.querySelectorAll(".card");
+		cards.forEach(function(el){
+			el.classList.remove("hidden");
+			el.classList.add("selected");
+		});
+		alert("Perdu");
 	}
 
 	restartGame(e){
@@ -91,8 +150,14 @@ class Game {
 	}
 
 	_checkClick(e){
+		if(!this.gameStarted){
+			console.log("game not started")
+			return;
+		}
 
-		if(e.target.parentElement.getAttribute("class") == "card"){
+		if(e.target.parentElement.classList.contains('card')){
+
+			console.log(this.canPlay)
 
 			let clickedCard = e.target.parentElement;
 
@@ -172,7 +237,7 @@ class Game {
 
 	_victory(){
 		alert("Victoire");
-		this.restartButton.classList.remove("hidden");
+		this.restartButton.classList.removeAttribute("disabled");
 		this.gameStarted = false;
 	}
 
@@ -227,8 +292,12 @@ class Game {
 		.then(response => response.json())
 		.then(data => {
 			console.log("Game loaded")
-			console.log(data)
+			console.log(data.data)
+			this.initializeBoard(data.data)
 		})
+	}
+
+	updateProgressBar(time){
 	}
 }
 
@@ -241,6 +310,51 @@ class Card{
 		this.selected = false;
 		this.source = source;
 	}
+
+}
+
+class Timer{
+
+	constructor(limit, lostCallback){
+
+		this.progressDiv = document.getElementById("progress");
+
+		this.time = 0;
+		this.limit = limit;
+
+		this.callback = lostCallback;
+
+		this.start = function(){
+
+			this.isRunning = true;
+
+			let interval = setInterval(() => {
+				
+				if(this.time == this.limit+1){
+					this.time--;
+					clearInterval(interval);
+					this.pause();
+				}
+
+				if(this.time > 0){
+					let percentage = (this.time / this.limit)*100
+					this.progressDiv.style.width = percentage + "%";
+				}
+
+				this.time++;
+			}, 1000);
+		}
+
+		this.pause = function(){
+			this.isRunning = false;
+			this.callback();
+		}
+
+		this.reset = function(){
+			this.time = 0;
+		}
+	}
+
 
 }
 
