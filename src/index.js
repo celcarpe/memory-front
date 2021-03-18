@@ -37,81 +37,51 @@ class Game {
 		this.boardElement = document.getElementById("board");
 		this.playButton = document.getElementById("playButton");
 		this.restartButton = document.getElementById("restart");
-		this.saveButton = document.getElementById("save");
-		this.loadButton = document.getElementById("load");
-		this.gameInput = document.getElementById("gameInput");
 
 
 		//Ajout des fonctions de gestion des événements
 		this.boardElement.addEventListener("click", this._checkClick.bind(this) );
 		this.playButton.addEventListener("click", this.startGame.bind(this));
 		this.restartButton.addEventListener("click", this.restartGame.bind(this));
-		this.saveButton.addEventListener("click", this.saveGame.bind(this));
-		this.loadButton.addEventListener("click", this.loadGame.bind(this));
 
 		//Initialisation du Timer
 		this.timer = new Timer(TIME_LIMIT, this.stopGame);
 
 	}
 
-	initializeBoard(loadedData){
+	initializeBoard(){
 
-		if(!loadedData){
+		//Réinitialisation de la board
+		this.firstCard = undefined;
+		this.gameID = this._generateGameID(24);
 
-			this.loadedGame = false;
+		this.cards = this._generateCards(PAIR_NUMBER)
 
-			//Réinitialisation de la board
-			this.firstCard = undefined;
-			this.gameID = this._generateGameID(24);
+		this.boardElement.innerHTML = ""; //
+		this.restartButton.setAttribute("disabled","disabled"); //
+		this.playButton.removeAttribute("disabled"); //
 
-			this.cards = this._generateCards(PAIR_NUMBER)
+		this.canPlay = false; //
 
-			this.boardElement.innerHTML = ""; //
-			this.restartButton.setAttribute("disabled","disabled"); //
-			this.playButton.removeAttribute("disabled"); //
+		//Génération du HTML des cartes
+		var cardsString = this.cards.reduce((accumulator, card) => {
 
-			this.canPlay = false; //
+			return accumulator += '<div class="card" pair="'+card.pair+'" number="'+card.number+'">'+'<img alt="" src="'+card.source+'" />'+'</div>';
+		}, "")
 
-			//Génération du HTML des cartes
-			var cardsString = this.cards.reduce((accumulator, card) => {
+		//Insertion des cartes dans le plateau
+		this.boardElement.insertAdjacentHTML("beforeend", cardsString );
 
-				return accumulator += '<div class="card" pair="'+card.pair+'" number="'+card.number+'">'+'<img alt="" src="'+card.source+'" />'+'</div>';
+		//chargement du classement
+		this.loadGames(function(data){
+			console.log(data)
+			var leaderboardString = data.reduce((accumulator, game) => {
+				return accumulator += '<li>'+game.time+' secondes</li>';
 			}, "")
+			let leaderboardList = document.getElementById("leaderboard");
+			leaderboardList.insertAdjacentHTML("afterBegin", leaderboardString)
+		});
 
-			//Insertion des cartes dans le plateau
-			this.boardElement.insertAdjacentHTML("beforeend", cardsString );
-
-		}else{
-			this.gameID 	= loadedData._id;
-			this.pairFound 	= loadedData.pairFound;
-			this.loadedGame = true;
-			this.cards 		= loadedData.cards;
-
-			this.boardElement.innerHTML = ""; //
-			this.restartButton.setAttribute("disabled","disabled"); //
-			this.playButton.removeAttribute("disabled"); //
-
-			this.canPlay 	= false; //
-
-			//Génération du HTML des cartes
-			let cardsString = loadedData.cards.reduce((accumulator, card) => {
-
-				let classList = "";
-
-				if(card.selected){
-					this.firstCard = card;
-					classList = "selected";
-				}
-
-				if(card.found)
-					classList = "hidden";
-
-				return accumulator += '<div class="card '+classList+'" pair="'+card.pair+'" number="'+card.number+'">'+'<img alt="" src="'+card.source+'" />'+'</div>';
-			}, "")
-
-			//Insertion des cartes dans le plateau
-			this.boardElement.insertAdjacentHTML("beforeend", cardsString );
-		}
 
 	}
 
@@ -122,19 +92,19 @@ class Game {
 		this.canPlay = true;
 		this.gameStarted = true;
 
-		if(!this.loadedGame){
-			this.gameInput.setAttribute("value",this.gameID);
-			this.pairFound = 0;
-		}else{
-			console.log("RESUME")
-		}
+		this.pairFound = 0;
 		this.playButton.setAttribute("disabled","disabled");
-		this.saveButton.removeAttribute("disabled");
+	}
+
+	defeat(){
+		alert("perdu");
+		this.stopGame();
 	}
 
 	stopGame(){
 		this.canPlay = false;
 		this.gameStarted = false;
+		this.restartButton.removeAttribute("disabled");
 
 		//révéler toutes les cartes
 		let cards = document.querySelectorAll(".card");
@@ -142,7 +112,6 @@ class Game {
 			el.classList.remove("hidden");
 			el.classList.add("selected");
 		});
-		alert("Perdu");
 	}
 
 	restartGame(e){
@@ -156,8 +125,6 @@ class Game {
 		}
 
 		if(e.target.parentElement.classList.contains('card')){
-
-			console.log(this.canPlay)
 
 			let clickedCard = e.target.parentElement;
 
@@ -195,8 +162,15 @@ class Game {
 						return card.number == clickedCard.getAttribute("number") && card.pair == clickedCard.getAttribute("pair")
 					}).found = true;
 
+					if(this.pairFound == PAIR_NUMBER){
+						this._victory();
+						this.canPlay = false;
+						return;
+					}
+
 					//Les cartes restent affichées quelques secondes avant d'être retournées et grisées
 					setTimeout(()=>{
+						console.log("dazdazd")
 						let card1 = document.getElementsByClassName('selected').item(0)
 						card1.classList.remove("selected");
 						card1.classList.add("hidden")
@@ -226,19 +200,15 @@ class Game {
 				this.firstCard.selected = false;
 				this.firstCard = undefined;
 			}
-
-			if(this.pairFound == PAIR_NUMBER){
-				this._victory();
-				this.canPlay = false;
-			}
 		}
 
 	}
 
 	_victory(){
 		alert("Victoire");
-		this.restartButton.classList.removeAttribute("disabled");
-		this.gameStarted = false;
+		this.stopGame();
+
+		this.saveGame();
 	}
 
 	_generateGameID(length) {
@@ -268,8 +238,10 @@ class Game {
 		return cards;
 	}
 
-	saveGame(e){
-		console.log(this);
+	saveGame(){
+
+		this.time = this.timer.getTime();
+
 		let conf = {
 			headers: { "Content-Type": "application/json; charset=utf-8" },
 			method : 'POST',
@@ -283,22 +255,21 @@ class Game {
 		})
 	}
 
-	loadGame(e){
+	loadGames(cb){
 		let conf = {
 			headers: { "Content-Type": "application/json; charset=utf-8" },
 			method : 'GET'
 		}
-		fetch(CONF.BACKEND_HOST+":"+CONF.BACKEND_PORT+"/games/"+this.gameInput.value, conf)
+		fetch(CONF.BACKEND_HOST+":"+CONF.BACKEND_PORT+"/games/", conf)
 		.then(response => response.json())
 		.then(data => {
 			console.log("Game loaded")
 			console.log(data.data)
-			this.initializeBoard(data.data)
+			cb(data.data)
+			//this.initializeBoard(data.data)
 		})
 	}
 
-	updateProgressBar(time){
-	}
 }
 
 class Card{
@@ -352,6 +323,10 @@ class Timer{
 
 		this.reset = function(){
 			this.time = 0;
+		}
+
+		this.getTime = function(){
+			return this.time;
 		}
 	}
 
