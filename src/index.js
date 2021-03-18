@@ -1,6 +1,15 @@
 import _ from 'lodash';
 import './index.css';
 
+//Importing images
+
+function importAll(r) {
+  return r.keys().map(r);
+}
+
+const IMAGE_POOL = importAll(require.context('./images', false, /\.(png|jpe?g|svg)$/));
+const PAIR_NUMBER = IMAGE_POOL.length;
+
 var CONF = {};
 CONF.BACKEND_HOST = "http://localhost"
 CONF.BACKEND_PORT = 3000;
@@ -29,6 +38,8 @@ class Game {
 		this.playButton = document.getElementById("playButton");
 		this.restartButton = document.getElementById("restart");
 		this.saveButton = document.getElementById("save");
+		this.loadButton = document.getElementById("load");
+		this.gameInput = document.getElementById("gameInput");
 
 	}
 
@@ -36,10 +47,9 @@ class Game {
 
 		//Réinitialisation de la board
 		this.firstCard = undefined;
-		this.gameID = this._generateGameID(10);
+		this.gameID = this._generateGameID(24);
 
-		this.cards = this._generateCards(5)
-		this.pairNumber = 5;
+		this.cards = this._generateCards(PAIR_NUMBER)
 
 		this.boardElement.innerHTML = "";
 		this.restartButton.classList.add("hidden");
@@ -50,10 +60,7 @@ class Game {
 		//Génération du HTML des cartes
 		var cardsString = this.cards.reduce((accumulator, card) => {
 
-			//Chaque carte est ajouté au tableau de données
-			this.cards.push(card)
-
-			return accumulator += '<div class="card" pair="'+card.pair+'">'+card.number+'</div>'
+			return accumulator += '<div class="card" pair="'+card.pair+'" number="'+card.number+'">'+'<img alt="" src="'+card.source+'" />'+'</div>';
 		}, "")
 
 		//Insertion des cartes dans le plateau
@@ -64,6 +71,7 @@ class Game {
 		this.playButton.addEventListener("click", this.startGame.bind(this));
 		this.restartButton.addEventListener("click", this.restartGame.bind(this));
 		this.saveButton.addEventListener("click", this.saveGame.bind(this));
+		this.loadButton.addEventListener("click", this.loadGame.bind(this));
 
 	}
 
@@ -82,47 +90,44 @@ class Game {
 		this.initializeBoard();
 	}
 
-
-	set setFirstCard(card){
-		this.firstCard = card;
-	}
-
-
 	_checkClick(e){
-		if(e.target.getAttribute("class") == "card"){
+
+		if(e.target.parentElement.getAttribute("class") == "card"){
+
+			let clickedCard = e.target.parentElement;
 
 			if(!this.canPlay)
 				return;
 
 			//Si aucune carte n'a été sélectionnée
 			if(this.firstCard == undefined){
-				e.target.classList.add("selected");
+				clickedCard.classList.add("selected");
 
 				//Mise à jour de la carte sélectionnée dans les données du jeu
 				this.firstCard = _.find(this.cards, function(card){
-					return card.number == e.target.innerHTML && card.pair == e.target.getAttribute("pair")
+					return card.number == clickedCard.getAttribute("number") && card.pair == clickedCard.getAttribute("pair")
 				})
 				this.firstCard.selected = true;
 			}else{
 
 				//Si l'utilisateur clique sur la même carte
-				if(e.target.getAttribute('pair') == this.firstCard.pair && e.target.innerHTML == this.firstCard.number){
+				if(clickedCard.getAttribute('pair') == this.firstCard.pair && clickedCard.getAttribute("number") == this.firstCard.number){
 					//Si même carte
 					return;
 
-				}else if(e.target.innerHTML == this.firstCard.number && e.target.getAttribute('pair') != this.firstCard.pair){
+				}else if(clickedCard.getAttribute("number") == this.firstCard.number && clickedCard.getAttribute('pair') != this.firstCard.pair){
 					//Si bonne carte
 					this.canPlay = false;
 					this.pairFound += 1;
 
-					e.target.classList.add("selected");
+					clickedCard.classList.add("selected");
 
 					//validation de la première carte de la paire dans les données du jeu
 					this.firstCard.found = true;
 
 					//validation de la seconde carte de la paire dans les données du jeu
 					_.find(this.cards, function(card){
-						return card.number == e.target.innerHTML && card.pair == e.target.getAttribute("pair")
+						return card.number == clickedCard.getAttribute("number") && card.pair == clickedCard.getAttribute("pair")
 					}).found = true;
 
 					//Les cartes restent affichées quelques secondes avant d'être retournées et grisées
@@ -141,7 +146,7 @@ class Game {
 
 				}else {
 					//Si mauvaise carte
-					e.target.classList.add("selected");
+					clickedCard.classList.add("selected");
 					this.canPlay = false;
 
 					//Les cartes restent affichées quelques secondes avant d'être retournées
@@ -157,7 +162,7 @@ class Game {
 				this.firstCard = undefined;
 			}
 
-			if(this.pairFound == this.pairNumber){
+			if(this.pairFound == PAIR_NUMBER){
 				this._victory();
 				this.canPlay = false;
 			}
@@ -173,7 +178,7 @@ class Game {
 
 	_generateGameID(length) {
 		var result           = '';
-		var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+		var characters       = 'ABCDEFabcdef0123456789';
 		var charactersLength = characters.length;
 
 		for ( var i = 0; i < length; i++ ) {
@@ -187,9 +192,9 @@ class Game {
 
 		let cards = [];
 
-		for(var i = 1; i<=cardsNb; i++){
-			cards.push(new Card(i, "A"));
-			cards.push(new Card(i, "B"));
+		for(var i = 0; i<cardsNb; i++){
+			cards.push(new Card(i, "A", IMAGE_POOL[i]));
+			cards.push(new Card(i, "B", IMAGE_POOL[i]));
 		}
 
 		//Mélange
@@ -199,29 +204,42 @@ class Game {
 	}
 
 	saveGame(e){
+		console.log(this);
 		let conf = {
 			headers: { "Content-Type": "application/json; charset=utf-8" },
 			method : 'POST',
 			body: JSON.stringify(this)
 		}
-		console.log("conf");
-		console.log(conf);
 		fetch(CONF.BACKEND_HOST+":"+CONF.BACKEND_PORT+"/games", conf)
 		.then(response => response.json())
 		.then(data => {
+			console.log("GAME SAVED")
 			console.log(data)
 		})
+	}
 
+	loadGame(e){
+		let conf = {
+			headers: { "Content-Type": "application/json; charset=utf-8" },
+			method : 'GET'
+		}
+		fetch(CONF.BACKEND_HOST+":"+CONF.BACKEND_PORT+"/games/"+this.gameInput.value, conf)
+		.then(response => response.json())
+		.then(data => {
+			console.log("Game loaded")
+			console.log(data)
+		})
 	}
 }
 
 class Card{
 
-	constructor(number, pair){
+	constructor(number, pair, source){
 		this.number = number;
 		this.pair = pair;
 		this.found = false;
 		this.selected = false;
+		this.source = source;
 	}
 
 }

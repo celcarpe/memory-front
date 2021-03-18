@@ -8,10 +8,14 @@
 	user-select: none;
 }
 
-.card.selected {
-	outline: solid red 2px;
-	outline-offset: -2px;
-	color: black;
+.card img {
+	opacity: 0;
+	width: 50px;
+	height: 50px;
+}
+
+.card.selected img {
+	opacity: 1;
 }
 
 .hidden {
