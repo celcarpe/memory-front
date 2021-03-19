@@ -22,10 +22,55 @@ body{
     justify-content: center;
     height: 100vh;
     width: 100vw;
+    font-family: 'Roboto', sans-serif;
 }
 
 .control-container {
+	display: flex;
+	align-items: center;
+	justify-content: space-around;
 	margin-bottom: 20px;
+
+	button {
+		padding: 8px;
+		border-radius: 2px;
+		border: none;
+		cursor: pointer;
+		transition: 0.2s all ease;
+
+		&:first-of-type {
+			background-color: $secondary;
+			color: $white;
+			&:hover {
+				background-color: $white;
+				color: $secondary;	
+				border: 1px solid $secondary;		
+			}
+		}
+
+		&:nth-of-type(2) {
+			background-color: $white;
+			color: $secondary;
+			border: 1px solid $secondary;
+			&:hover {
+				background-color: $secondary;
+				color: $white;			
+			}
+		}
+
+		&[disabled="disabled"] {
+			background-color: grey;
+			color: white;
+			cursor: not-allowed;
+			border: none;
+
+			&:hover {
+				background-color: grey;
+				border: none;
+				color: white;
+			}
+		}
+	}
 }
 
 #board {
@@ -93,6 +138,17 @@ body{
 
 #leaderboard-tile{
 	margin-top: 15px;
+
+	h2{
+		font-weight: 100;
+		text-align: center;
+	}
+
+	ul{
+		margin-top: 5px;
+		text-align: center;
+		list-style-type: none;
+	}
 }
 
 
