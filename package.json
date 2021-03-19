@@ -25,6 +25,7 @@
     "webpack-dev-server": "^3.11.2"
   },
   "dependencies": {
+    "html-loader": "^2.1.2",
     "lodash": "^4.17.21",
     "style-loader": "^2.0.0"
   }
