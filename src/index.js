@@ -10,24 +10,12 @@ function importAll(r) {
 
 const IMAGE_POOL = importAll(require.context('./images/cards', false, /\.(png|jpe?g|svg)$/));
 const PAIR_NUMBER = IMAGE_POOL.length;
-const TIME_LIMIT = 60;
+const TIME_LIMIT = 180;
 
 var CONF = {};
 CONF.BACKEND_HOST = "http://localhost"
 CONF.BACKEND_PORT = 3000;
 
-/*
-
-TODO:
-- Timer
-- Progress bar
-- BDD
-	- sauvegarder partie en cours
-	- charger une partie
-	- suppression d'une partie sauvegardée lorsque celle ci est terminée
-
-
-*/
 
 class Game {
 
@@ -45,21 +33,34 @@ class Game {
 		this.restartButton.addEventListener("click", this.restartGame.bind(this));
 
 		//Initialisation du Timer
-		this.timer = new Timer(TIME_LIMIT, this.stopGame);
+		this.timer = new Timer(TIME_LIMIT, this.defeat, this);
 
+		//chargement du classement
+		this.loadGames(function(data){
+			console.log(data)
+			var leaderboardString = data.reduce((accumulator, game) => {
+				return accumulator += '<li>'+game.time+' secondes</li>';
+			}, "")
+			let leaderboardList = document.getElementById("leaderboard");
+			leaderboardList.insertAdjacentHTML("afterBegin", leaderboardString)
+		});
 	}
 
+	/*
+	*	Fonction d'initialisation/réinitialisation du plateau de jeu
+	*/
 	initializeBoard(){
 
 		//Réinitialisation de la board
 		this.firstCard = undefined;
 		this.gameID = this._generateGameID(24);
-
 		this.cards = this._generateCards(PAIR_NUMBER)
-
 		this.boardElement.innerHTML = ""; //
 		this.restartButton.setAttribute("disabled","disabled"); //
 		this.playButton.removeAttribute("disabled"); //
+
+		//Réinitialisation du Timer
+		this.timer.reset();
 
 		this.canPlay = false; //
 
@@ -71,17 +72,6 @@ class Game {
 
 		//Insertion des cartes dans le plateau
 		this.boardElement.insertAdjacentHTML("beforeend", cardsString );
-
-		//chargement du classement
-		this.loadGames(function(data){
-			console.log(data)
-			var leaderboardString = data.reduce((accumulator, game) => {
-				return accumulator += '<li>'+game.time+' secondes</li>';
-			}, "")
-			let leaderboardList = document.getElementById("leaderboard");
-			leaderboardList.insertAdjacentHTML("afterBegin", leaderboardString)
-		});
-
 
 	}
 
@@ -96,11 +86,6 @@ class Game {
 		this.playButton.setAttribute("disabled","disabled");
 	}
 
-	defeat(){
-		alert("perdu");
-		this.stopGame();
-	}
-
 	stopGame(){
 		this.canPlay = false;
 		this.gameStarted = false;
@@ -112,6 +97,25 @@ class Game {
 			el.classList.remove("hidden");
 			el.classList.add("selected");
 		});
+	}
+
+	/*
+	*	Fonction exécutée en cas de défaite
+	*	Passée en fonction de callback au Timer
+	*/
+	defeat(){
+		console.log(this)
+		alert("perdu");
+		this.stopGame();
+	}
+
+	victory(){
+		alert("Victoire");
+		
+		this.timer.pause();
+		this.stopGame();
+
+		this.saveGame();
 	}
 
 	restartGame(e){
@@ -163,7 +167,7 @@ class Game {
 					}).found = true;
 
 					if(this.pairFound == PAIR_NUMBER){
-						this._victory();
+						this.victory();
 						this.canPlay = false;
 						return;
 					}
@@ -202,13 +206,6 @@ class Game {
 			}
 		}
 
-	}
-
-	_victory(){
-		alert("Victoire");
-		this.stopGame();
-
-		this.saveGame();
 	}
 
 	_generateGameID(length) {
@@ -263,10 +260,7 @@ class Game {
 		fetch(CONF.BACKEND_HOST+":"+CONF.BACKEND_PORT+"/games/", conf)
 		.then(response => response.json())
 		.then(data => {
-			console.log("Game loaded")
-			console.log(data.data)
 			cb(data.data)
-			//this.initializeBoard(data.data)
 		})
 	}
 
@@ -286,24 +280,23 @@ class Card{
 
 class Timer{
 
-	constructor(limit, lostCallback){
+	constructor(limit, lostCallback, game){
 
 		this.progressDiv = document.getElementById("progress");
 
 		this.time = 0;
 		this.limit = limit;
 
-		this.callback = lostCallback;
-
+		this.callback = lostCallback.bind(game); 
 		this.start = function(){
 
 			this.isRunning = true;
 
-			let interval = setInterval(() => {
+			this.interval = setInterval(() => {
 				
 				if(this.time == this.limit+1){
 					this.time--;
-					clearInterval(interval);
+					clearInterval(this.interval);
 					this.pause();
 				}
 
@@ -323,11 +316,19 @@ class Timer{
 
 		this.reset = function(){
 			this.time = 0;
+			let percentage = (this.time / this.limit)*100
+			this.progressDiv.style.width = percentage + "%";
 		}
 
 		this.getTime = function(){
 			return this.time;
 		}
+
+		this.setTime = function(time){
+			this.time = time;
+			let percentage = (this.time / this.limit)*100
+			this.progressDiv.style.width = percentage + "%";
+		}	
 	}
 
 
