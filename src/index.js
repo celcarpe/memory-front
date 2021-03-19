@@ -311,6 +311,7 @@ class Timer{
 
 		this.pause = function(){
 			this.isRunning = false;
+			clearInterval(this.interval);
 			this.callback();
 		}
 
